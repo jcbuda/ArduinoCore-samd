@@ -68,11 +68,11 @@ const DeviceDescriptor USB_DeviceDescriptor = D_DEVICE(0x00, 0x00, 0x00, 64, USB
 volatile uint32_t _usbConfiguration = 0;
 volatile uint32_t _usbSetInterface = 0;
 
-static __attribute__((__aligned__(4))) /*__attribute__((__section__(".bss_hram0")))*/
+static __attribute__((__aligned__(4))) //__attribute__((__section__(".bss_hram0")))
 uint8_t udd_ep_out_cache_buffer[4][64];
 
-static __attribute__((__aligned__(4))) /*__attribute__((__section__(".bss_hram0")))*/
-uint8_t udd_ep_in_cache_buffer[4][128];
+static __attribute__((__aligned__(4))) //__attribute__((__section__(".bss_hram0")))
+uint8_t udd_ep_in_cache_buffer[4][64];
 
 //==================================================================
 
@@ -361,7 +361,7 @@ bool USBDeviceClass::handleClassInterfaceSetup(Setup& setup)
 	#if defined(HID_ENABLED)
 	if (HID_INTERFACE == i)
 	{
-		if (HID_Setup(setup) == true) {
+		if (HID_Setup(setup) == false) {
 			sendZlp(0);
 		}
 		return true;
@@ -375,7 +375,7 @@ void USBDeviceClass::initEP(uint32_t ep, uint32_t config)
 {
 	if (config == (USB_ENDPOINT_TYPE_INTERRUPT | USB_ENDPOINT_IN(0)))
 	{
-		usbd.epBank1SetSize(ep, 8);
+		usbd.epBank1SetSize(ep, 64);
 		usbd.epBank1SetAddress(ep, &udd_ep_in_cache_buffer[ep]);
 		usbd.epBank1SetType(ep, 4); // INTERRUPT IN
 	}
@@ -577,21 +577,67 @@ uint8_t USBDeviceClass::armRecv(uint32_t ep, uint32_t len)
 //	Blocking Send of data to an endpoint
 uint32_t USBDeviceClass::send(uint32_t ep, const void *data, uint32_t len)
 {
+	uint32_t length = 0;
+
 	if (!_usbConfiguration)
 		return -1;
+    if (len > 16384 )
+		return -1;
 
-	armSend(ep, data, len);
+	if( (unsigned int)data > 0x20000000 )
+	{
+		// Buffer in RAM
+		usbd.epBank1SetAddress(ep, (void *)data);
+		usbd.epBank1SetMultiPacketSize(ep, 0);
 
-	// Clear the transfer complete flag
-	usbd.epBank1AckTransferComplete(ep);
+		usbd.epBank1SetByteCount(ep, len);
 
-	// RAM buffer is full, we can send data (IN)
-	usbd.epBank1SetReady(ep);
+		// Clear the transfer complete flag
+		usbd.epBank1AckTransferComplete(ep);
 
-	// Wait for transfer to complete
-	while (!usbd.epBank1IsTransferComplete(ep)) {
-		;  // need fire exit.
+		// RAM buffer is full, we can send data (IN)
+		usbd.epBank1SetReady(ep);
+
+		// Wait for transfer to complete
+		while (!usbd.epBank1IsTransferComplete(ep)) {
+			;  // need fire exit.
+		}
+		len = 0;
 	}
+	else
+	{
+		// Flash area
+		while( len != 0 )
+		{
+			if( len >= 64 )
+			{
+				length = 64;
+			}
+			else
+			{
+				length = len;
+			}
+
+			/* memcopy could be safer in multi threaded environment */
+			memcpy(&udd_ep_in_cache_buffer[ep], data, length);
+
+			usbd.epBank1SetAddress(ep, &udd_ep_in_cache_buffer[ep]);
+			usbd.epBank1SetByteCount(ep, length);
+
+			// Clear the transfer complete flag
+			usbd.epBank1AckTransferComplete(ep);
+
+			// RAM buffer is full, we can send data (IN)
+			usbd.epBank1SetReady(ep);
+
+			// Wait for transfer to complete
+			while (!usbd.epBank1IsTransferComplete(ep)) {
+				;  // need fire exit.
+			}
+			len -= length;
+		}
+	}
+
 	return len;
 }
 
@@ -712,9 +758,9 @@ bool USBDeviceClass::handleStandardSetup(Setup &setup)
 			#endif
 
 			#if defined(CDC_ENABLED)
-			initEP(CDC_ENDPOINT_ACM, USB_ENDPOINT_TYPE_BULK      | USB_ENDPOINT_IN(0));
+			initEP(CDC_ENDPOINT_ACM, USB_ENDPOINT_TYPE_INTERRUPT | USB_ENDPOINT_IN(0));
 			initEP(CDC_ENDPOINT_OUT, USB_ENDPOINT_TYPE_BULK      | USB_ENDPOINT_OUT(0));
-			initEP(CDC_ENDPOINT_IN,  USB_ENDPOINT_TYPE_INTERRUPT | USB_ENDPOINT_IN(0));
+			initEP(CDC_ENDPOINT_IN,  USB_ENDPOINT_TYPE_BULK | USB_ENDPOINT_IN(0));
 			#endif
 			_usbConfiguration = setup.wValueL;
 
