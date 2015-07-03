@@ -25,7 +25,7 @@
 
 #ifdef CDC_ENABLED
 
-#define CDC_SERIAL_BUFFER_SIZE	256
+#define CDC_SERIAL_BUFFER_SIZE	65
 
 /* For information purpose only since RTS is not always handled by the terminal application */
 #define CDC_LINESTATE_DTR		0x01 // Data Terminal Ready
