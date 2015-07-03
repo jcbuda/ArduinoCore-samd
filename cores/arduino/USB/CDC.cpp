@@ -25,7 +25,7 @@
 
 #ifdef CDC_ENABLED
 
-#define CDC_SERIAL_BUFFER_SIZE	65
+#define CDC_SERIAL_BUFFER_SIZE	256
 
 /* For information purpose only since RTS is not always handled by the terminal application */
 #define CDC_LINESTATE_DTR		0x01 // Data Terminal Ready
@@ -149,7 +149,7 @@ void Serial_::end(void)
 
 void Serial_::accept(void)
 {
- 	uint8_t buffer[CDC_SERIAL_BUFFER_SIZE];
+	uint8_t buffer[CDC_SERIAL_BUFFER_SIZE];
 	uint32_t len = usb.recv(CDC_ENDPOINT_OUT, &buffer, CDC_SERIAL_BUFFER_SIZE);
 
 	noInterrupts();
@@ -175,8 +175,9 @@ void Serial_::accept(void)
 int Serial_::available(void)
 {
 	ring_buffer *buffer = &cdc_rx_buffer;
-	if (buffer->full)
+	if (buffer->full) {
 		return CDC_SERIAL_BUFFER_SIZE;
+	}
 	if (buffer->head == buffer->tail) {
 		USB->DEVICE.DeviceEndpoint[2].EPINTENSET.reg = USB_DEVICE_EPINTENCLR_TRCPT(1);
 	}
