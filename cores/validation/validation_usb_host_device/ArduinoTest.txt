@@ -1,0 +1,34 @@
+c:\jcb\support\arduino\jar>java -jar USB-test-4.jar COM78 s
+Opening serial port.
+Running massive send test
+received 138650...
+received 277425...
+received 427325...
+received 586100...
+received 727475...
+received 877150...
+received 1000000...
+received 1000000 bytes at 1142.693900871304 Kbit/sec
+Checking
+Received data OK: test PASSED
+Closing serial port.
+
+
+c:\jcb\support\arduino\jar>java -jar USB-test-4.jar COM78 L
+Opening serial port.
+Running loopback test (cmd L)
+received 99231 bytes
+received 100000 bytes
+received 100000 bytes at 411.94644696189494 Kbit/sec
+Received data OK: test PASSED
+Closing serial port.
+
+
+c:\jcb\support\arduino\jar>java -jar USB-test-4.jar COM78 l
+Opening serial port.
+Running loopback test (cmd l)
+received 99905 bytes
+received 100000 bytes
+received 100000 bytes at 40.06410256410256 Kbit/sec
+Received data OK: test PASSED
+Closing serial port.
